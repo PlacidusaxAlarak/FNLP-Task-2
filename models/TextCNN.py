@@ -11,9 +11,11 @@ class TextCNN(nn.Module):
         self.embedding=nn.Embedding(config.vocab_size, config.embedding_dim)
         if config.use_glove and embedding_matrix is not None:
             print("Initailizing embedding layer with glove weights")
-        self.embedding.weight.data.copy_(torch.from_numpy(embedding_matrix))
-        self.embedding.weight.requires_grad=not config.freeze_embeddings
-
+            self.embedding.weight.data.copy_(torch.from_numpy(embedding_matrix))
+            self.embedding.weight.requires_grad=not config.freeze_embeddings
+        else:
+            print("正在使用随机权重初始化Embedding层")
+            self.embedding.weight.requires_grad=True#模型可以学习这个参数
         #Convolutional Layers
         self.convs=nn.ModuleList([
             nn.Conv1d(in_channels=config.embedding_dim, out_channels=config.num_filters, kernel_size=k)

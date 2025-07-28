@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from nltk import accuracy
-from statsmodels.tsa.ardl.pss_critical_values import crit_vals
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import os
@@ -10,10 +8,18 @@ import time
 
 from configs import Config
 from models.TextCNN import TextCNN
+from models.TextRNN import TextRNN
+from models.TextTransformer import TextTransformer
 from dataset import TextDataset
 from utils.vocabulary import Vocabulary
 from utils.preprocess import load_data_and_split, build_glove_embedding_matrix, load_test_data
 
+
+def get_criterion(config):
+    if config.loss_function=="CrossEntropyLoss":
+        return nn.CrossEntropyLoss()
+    else:
+        raise ValueError(f"不支持的损失函数:{config.loss_function}")
 def get_optimizer(model, config):
     if config.optimizer=="Adam":
         return optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_deacy)
@@ -64,12 +70,19 @@ def run_training(config:Config):
     embedding_matrix=None
     if config.use_glove:
         embedding_matrix=build_glove_embedding_matrix(config.glvoe_path, vocab, config.embedding_dim)
-        if embedding_matrix is None:
-            return
 
     #初始化模型
-    model=TextCNN(config, embedding_matrix).to(config.device)
-    criterion=nn.CrossEntropyLoss()
+    print(f"\n正在初始化模型:{config.model_name}")
+    if config.model_name=="TextCNN":
+        model=TextCNN(config, embedding_matrix)
+    elif config.model_name=="TextRNN":
+        model=TextRNN(config, embedding_matrix)
+    elif config.model_name=="TextTransformer":
+        model=TextTransformer(config, embedding_matrix)
+    else:
+        raise ValueError(f"Invalid model name:{config.model_name}")
+    model.to(config.device)
+    criterion=get_criterion(config)
     optimizer=get_optimizer(model, config)
 
     print(f"\n --------Training Details-----------")
