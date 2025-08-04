@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import os
 import time
-
+from transformers import get_cosine_schedule_with_warmup
 from configs import Config
 from models.TextCNN import TextCNN
 from models.TextRNN import TextRNN
@@ -17,12 +17,14 @@ from utils.preprocess import load_data_and_split, build_glove_embedding_matrix, 
 
 def get_criterion(config):
     if config.loss_function=="CrossEntropyLoss":
-        return nn.CrossEntropyLoss()
+        return nn.CrossEntropyLoss(label_smoothing=config.label_smoothing)
     else:
         raise ValueError(f"不支持的损失函数:{config.loss_function}")
 def get_optimizer(model, config):
-    if config.optimizer=="Adam":
-        return optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_deacy)
+    if config.optimizer=='AdamW':
+        return optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
+    elif config.optimizer=="Adam":
+        return optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
     elif config.optimizer=="SGD":
         return optim.SGD(model.parameters(), lr=config.learning_rate)
     else:
@@ -69,7 +71,7 @@ def run_training(config:Config):
     #加载Glove Embedding
     embedding_matrix=None
     if config.use_glove:
-        embedding_matrix=build_glove_embedding_matrix(config.glvoe_path, vocab, config.embedding_dim)
+        embedding_matrix=build_glove_embedding_matrix(config.glove_path, vocab, config.embedding_dim)
 
     #初始化模型
     print(f"\n正在初始化模型:{config.model_name}")
@@ -85,6 +87,17 @@ def run_training(config:Config):
     criterion=get_criterion(config)
     optimizer=get_optimizer(model, config)
 
+    scheduler=None
+    if config.use_scheduler:
+        num_training_steps=len(train_loader)*config.num_epochs
+        num_warmup_steps=int(num_training_steps*config.warmup_ratio)
+        
+        scheduler=get_cosine_schedule_with_warmup(
+            optimizer, 
+            num_warmup_steps=num_warmup_steps,
+            num_training_steps=num_training_steps
+        )
+        print(f"Using Cosine Annealing scheduler with {num_warmup_steps} warmup steps.")
     print(f"\n --------Training Details-----------")
     print(f"Model:{config.model_name}")
     print(f"Optimizer:{config.optimizer}")
@@ -104,7 +117,10 @@ def run_training(config:Config):
             outputs=model(texts)
             loss=criterion(outputs, labels)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  #梯度裁剪
             optimizer.step()
+            if scheduler:
+                scheduler.step()
 
             epoch_loss+=loss.item()
             progress_bar.set_postfix({'loss':loss.item()})

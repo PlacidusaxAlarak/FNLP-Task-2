@@ -14,35 +14,39 @@ class Config:
 
         #CNN模型超参数
         self.model_name="TextCNN"
-        self.embedding_dim=100#与glove一致
+        self.embedding_dim=300#与glove一致
         self.num_filters=128#卷积核数量
-        self.dropout_prob=0.7
+        self.dropout_prob=0.1
         self.filter_sizes=[3, 4, 5]#卷积核尺寸
-        self.weight_deacy=1e-5
+        self.weight_decay=0.1
 
         #RNN(LSTM)模型超参数
-        self.rnn_hidden_size=128
-        self.rnn_num_layers=2
+        self.rnn_hidden_size=1024
+        self.rnn_num_layers=8
         self.rnn_bidirectional=True
 
         #Transformer超参数
-        self.trans_nhead=4
-        self.trans_num_layers=2
-        self.trans_dim_feedforward=512
+        self.trans_nhead=75
+        self.trans_num_layers=8
+        self.trans_dim_feedforward=4*self.embedding_dim
         #训练超参数
         self.num_epochs=50
-        self.batch_size=8
-        self.learning_rate=1e-4
-        self.optimizer='Adam'
+        self.batch_size=64
+        self.learning_rate=1e-3
+        self.label_smoothing=0.1
+        self.optimizer='AdamW'
         self.loss_function="CrossEntropyLoss"
-
+        
+        #学习率调度器设置
+        self.use_scheduler=True
+        self.warmup_ratio=0.1
         #glove预训练词向量
         self.use_glove=True
-        self.glvoe_path="data/glove.6B.100d.txt"
+        self.glove_path="data/glove.6B.300d.txt"
         self.freeze_embeddings=False#是否冻结embeddings层
 
         #数据预处理
-        self.max_seq_length=128#句子最大长度
+        self.max_seq_length=256#句子最大长度
         self.min_word_freq=1#构建词表的最小频率
         self.num_classes=5#类别数（5种情绪）
         self.vocab_size=0#构建词表后更新
